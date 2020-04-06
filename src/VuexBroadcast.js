@@ -50,11 +50,9 @@ export default class VuexBroadcast {
   #symbolKey = 'fromMessage'
 
   /**
-   * @constructor
    * Registers the vuex module, if `enableLeaderElection` option is set to true, creates a main brodcast channel to handle leader election.
    * Creates a channel for each eligible store module, subscribes to store mutations and broadcasts the mutations to the appropriate channels.
    *
-   * @param {Vuex.Store} store - the vuex store to use with this plugin
    * @param {Object} options -
    * @property {Boolean} [options.type] - a channel creation option, see (https://github.com/pubkey/broadcast-channel/#set-options-when-creating-a-channel-optional)
    * @property {Boolean} [options.webWorkerSupport=false] - a channel creation option, see (https://github.com/pubkey/broadcast-channel/#set-options-when-creating-a-channel-optional)
@@ -62,7 +60,7 @@ export default class VuexBroadcast {
    * @property {String} [options.moduleName="vuexBroadcast"] - the vuex module name that will be registered, defaults to "vuexBroadcast"
    * @property {Boolean} [options.enableLeaderElection=false] -
    */
-  constructor(options) {
+  constructor (options) {
     const {
       type,
       webWorkerSupport,
@@ -79,12 +77,13 @@ export default class VuexBroadcast {
       this.#channelsOptions.type = type
     }
 
-    this.init(store, { enableLeaderElection })
+    return store => {
+      this.init(store, { enableLeaderElection })
+    }
   }
 
   /**
    * @public
-   *
    *
    * @param {Vuex.Store} store - the created vuex store
    * @param {Object} options -
@@ -92,7 +91,7 @@ export default class VuexBroadcast {
    *
    * @returns {void}
    */
-  init(store, { enableLeaderElection }) {
+  init (store, { enableLeaderElection }) {
     store.registerModule(this.#moduleName, broadcastModule)
 
     if (enableLeaderElection) {
@@ -131,7 +130,7 @@ export default class VuexBroadcast {
    *
    * @returns {Boolean} - true when the mutation can be broadcasted in a channel
    */
-  isMutationBroadcastable(mutation) {
+  isMutationBroadcastable (mutation) {
     return (
       !isMutationFromBroadcastModule(mutation) &&
       !mutation.payload[Symbol.for(this.#symbolKey)]
@@ -147,7 +146,7 @@ export default class VuexBroadcast {
    *
    * @returns {void}
    */
-  createChannelsForStoreModules(store) {
+  createChannelsForStoreModules (store) {
     // rawModules contain the unprocessed module config
     const rawModules = store._modules.root._rawModule.modules
 
@@ -170,7 +169,7 @@ export default class VuexBroadcast {
    *
    * @returns {BroadcastChannel} - the created channel
    */
-  createChannel(name) {
+  createChannel (name) {
     if (this.#channels.has(name)) {
       const c = this.#channels.get(name)
       c.removeEventListener('message')
@@ -198,7 +197,7 @@ export default class VuexBroadcast {
    *
    * @returns {void}
    */
-  onMessage(channelName, message, store) {
+  onMessage (channelName, message, store) {
     const { value } = message
     const channel = this.#channels.get(channelName)
 
@@ -221,8 +220,7 @@ export default class VuexBroadcast {
    *
    * @returns {Object} -
    */
-  addMetadataToPayload(payload) {
-    console.log(payload)
+  addMetadataToPayload (payload) {
     const result = { ...payload }
     // use a Symbol to add metadata to the mutation as it not considered as an object property,
     // thus will by ignored by JSON.stringify
@@ -241,7 +239,7 @@ export default class VuexBroadcast {
    *
    * @returns {void}
    */
-  postMessage(channelName, message) {
+  postMessage (channelName, message) {
     if (this.#channels.has(channelName)) {
       const channel = this.#channels.get(channelName)
       // keep track of the last message to avoid infinite loops
