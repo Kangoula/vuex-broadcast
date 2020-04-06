@@ -1,4 +1,5 @@
-import { BroadcastChannel, createLeaderElection } from 'broadcast-channel'
+import { createLeaderElection } from 'broadcast-channel'
+import EnhancedBroadcastChannel from './EnhancedBroadcastChannel'
 import broadcastModule, {
   isMutationFromBroadcastModule
 } from './broadcastModule'
@@ -106,7 +107,7 @@ export default class VuexBroadcast {
     this.createChannelsForStoreModules(store)
 
     store.subscribe(mutation => {
-      if (this.isMutationBroadcastable(mutation)) {
+      if (!isMutationFromBroadcastModule(mutation)) {
         const [namespace] = mutation.type.split('/')
         const m = {
           from: this.#uid,
@@ -121,25 +122,6 @@ export default class VuexBroadcast {
   /**
    * @private
    *
-   * Takes a mutation and checks if it does not come from this plugin.
-   * This way we dont send duplicates of the same mutation when we apply it.
-   * A mutation comes from this module if:
-   *  - it is from the module registered by this plugin
-   *  - has a Symbol in its payload (see addMetadataToPayload method for more details)
-   * @param {Vuex.mutation} mutation -
-   *
-   * @returns {Boolean} - true when the mutation can be broadcasted in a channel
-   */
-  isMutationBroadcastable (mutation) {
-    return (
-      !isMutationFromBroadcastModule(mutation) &&
-      !mutation.payload[Symbol.for(this.#symbolKey)]
-    )
-  }
-
-  /**
-   * @private
-   *
    * Loop through all the store modules and creates a channel for this module if its has the `boradcast`key set to true in its definition
    * Setup listenets on messages received on this channel
    * @param {Vuex.Store} store -
@@ -148,12 +130,13 @@ export default class VuexBroadcast {
    */
   createChannelsForStoreModules (store) {
     // rawModules contain the unprocessed module config
+
     const rawModules = store._modules.root._rawModule.modules
 
     for (const moduleName in rawModules) {
-      if (rawModules[moduleName].broadcast === true) {
-        const channel = this.createChannel(moduleName)
-
+      const m = rawModules[moduleName]
+      if (m.broadcast === true) {
+        const channel = this.createChannel(moduleName, m)
         channel.addEventListener('message', message => {
           this.onMessage(moduleName, message, store)
         })
@@ -166,21 +149,47 @@ export default class VuexBroadcast {
    *
    * Create a new BroadcastChannel with the given name
    * @param {String} name - the name of the channel that will be created
+   * @param {Object} [config=undefined] - the store module we are creating a channel for
    *
    * @returns {BroadcastChannel} - the created channel
    */
-  createChannel (name) {
+  createChannel (name, config) {
     if (this.#channels.has(name)) {
       const c = this.#channels.get(name)
       c.removeEventListener('message')
       c.close()
     }
 
-    const channel = new BroadcastChannel(name, this.#channelsOptions)
+    const channel = new EnhancedBroadcastChannel(name, this.#channelsOptions)
+
+    if (config) {
+      channel.mutationsNames = Object.keys(config.mutations).map(
+        mutation => `${name}/${mutation}`
+      )
+    }
+
+    channel.hasMutation = function (mutationName) {
+      // `this` is the current channel
+      if (this.mutationNames) {
+        return this.mutationNames.includes(mutationName)
+      }
+
+      return true
+    }
+
     this.#channels.set(name, channel)
 
     // keep track of the channel the last message sent or received
     channel.lastMessage = null
+
+    channel.isMessageSameAsLast = function (message) {
+      const stringifiedMessage = JSON.stringify(message.value)
+      return this.lastMessage === stringifiedMessage
+    }
+
+    channel.setLastMessage = function (message) {
+      this.lastMessage = JSON.stringify(message.value)
+    }
 
     return channel
   }
@@ -202,30 +211,13 @@ export default class VuexBroadcast {
     const channel = this.#channels.get(channelName)
 
     // keep track of the last message to avoid infinite loops
-    const stringifiedMessage = JSON.stringify(value)
-    if (channel.lastMessage !== stringifiedMessage) {
-      store.commit(value.type, this.addMetadataToPayload(value.payload))
-      channel.lastMessage = stringifiedMessage
+    if (
+      channel.hasMutation(message.value.type) &&
+      !channel.isMessageSameAsLast(message)
+    ) {
+      store.commit(value.type, value.payload)
+      channel.setLastMessage(message)
     }
-  }
-
-  /**
-   * @private
-   *
-   * Adds a Symbol to a mutation payload, a Symbol is a Javascript primitive type
-   * When you add a Symbol as a property to an Object, it will not be accessible unless you know the Symbol key
-   * We use it to add metadata stating that the mutation has been processed by the plugin.
-   *
-   * @param {Object} payload - the mutation payload
-   *
-   * @returns {Object} -
-   */
-  addMetadataToPayload (payload) {
-    const result = { ...payload }
-    // use a Symbol to add metadata to the mutation as it not considered as an object property,
-    // thus will by ignored by JSON.stringify
-    result[Symbol.for(this.#symbolKey)] = true
-    return result
   }
 
   /**
@@ -243,7 +235,7 @@ export default class VuexBroadcast {
     if (this.#channels.has(channelName)) {
       const channel = this.#channels.get(channelName)
       // keep track of the last message to avoid infinite loops
-      channel.lastMessage = JSON.stringify(message.value)
+      channel.setLastMessage(message)
       channel.postMessage(message)
     }
   }
