@@ -54,7 +54,7 @@ export default class VuexBroadcast {
    * Creates a channel for each eligible store module, subscribes to store mutations and broadcasts the mutations to the appropriate channels.
    *
    * @param {Object} options -
-   * @property {Boolean} [options.type] - a channel creation option, see (https://github.com/pubkey/broadcast-channel/#set-options-when-creating-a-channel-optional)
+   * @property {String} [options.type] - a channel creation option, see (https://github.com/pubkey/broadcast-channel/#set-options-when-creating-a-channel-optional)
    * @property {Boolean} [options.webWorkerSupport=false] - a channel creation option, see (https://github.com/pubkey/broadcast-channel/#set-options-when-creating-a-channel-optional)
    * @property {String} [options.mainChannelName="vuexBroadcast"] - the broadcast channel name, mainly used to elect a leader between all the app instances, defaults to "vuexBroadcast"
    * @property {String} [options.moduleName="vuexBroadcast"] - the vuex module name that will be registered, defaults to "vuexBroadcast"
