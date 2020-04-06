@@ -1,0 +1,42 @@
+{
+    "name": "vuex-broadcast",
+    "version": "0.1.0",
+    "description": "A vuex plugin to share mutations between multiple instances of a same Vue app",
+    "main": "dist/vuex-broadcast.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "echo \"Error no start script specified\" && exit 1",
+        "lint": "npx eslint src --fix",
+        "build": "npm run lint && npx webpack --config webpack.prod.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Kangoula/vuex-broadcast"
+    },
+    "keywords": [
+        "vuex",
+        "vue",
+        "persist",
+        "localforage",
+        "storage",
+        "indexedDB"
+    ],
+    "author": "Guillaume Denis",
+    "license": "MIT",
+    "devDependencies": {
+        "clean-webpack-plugin": "^3.0.0",
+        "babel-eslint": "^10.0.3",
+        "eslint": "^6.7.2",
+        "eslint-plugin-prettier": "^3.1.1",
+        "eslint-plugin-vue": "^6.1.2",
+        "prettier": "^1.19.1",
+        "prettier-eslint": "^9.0.1",
+        "webpack": "^4.41.2",
+        "webpack-cli": "^3.3.9",
+        "webpack-merge": "^4.2.2"
+    },
+    "dependencies": {
+        "core-js": "^3.6.4",
+        "broadcast-channel": "^3.1.0"
+    }
+}
