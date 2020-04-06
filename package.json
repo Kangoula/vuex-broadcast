@@ -17,9 +17,9 @@
     "vuex",
     "vue",
     "persist",
-    "localforage",
-    "storage",
-    "indexedDB"
+    "broadcast",
+    "share",
+    "mutation"
   ],
   "author": "Guillaume Denis",
   "license": "MIT",
