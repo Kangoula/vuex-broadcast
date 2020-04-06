@@ -6,8 +6,8 @@ module.exports = {
   plugins: [new CleanWebpackPlugin()],
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'vuex-persist.js',
-    library: 'vuexPersist',
+    filename: 'vuex-broadcast.js',
+    library: 'vuexBroadcast',
     libraryTarget: 'umd'
   }
 }
