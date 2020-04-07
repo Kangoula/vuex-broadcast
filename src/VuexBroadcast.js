@@ -1,5 +1,5 @@
 import { createLeaderElection } from 'broadcast-channel'
-import EnhancedBroadcastChannel from './EnhancedBroadcastChannel'
+import StoreModuleChannel from './StoreModuleChannel'
 import broadcastModule, {
   isMutationFromBroadcastModule
 } from './broadcastModule'
@@ -46,20 +46,16 @@ export default class VuexBroadcast {
   #isLeader = false
 
   /**
-   * @private {String} key used to create a Symbol for augmenting Vuex mutations with hidden(ish) metadata
-   */
-  #symbolKey = 'fromMessage'
-
-  /**
    * Registers the vuex module, if `enableLeaderElection` option is set to true, creates a main brodcast channel to handle leader election.
    * Creates a channel for each eligible store module, subscribes to store mutations and broadcasts the mutations to the appropriate channels.
-   *
    * @param {Object} options -
    * @property {String} [options.type] - a channel creation option, see (https://github.com/pubkey/broadcast-channel/#set-options-when-creating-a-channel-optional)
    * @property {Boolean} [options.webWorkerSupport=false] - a channel creation option, see (https://github.com/pubkey/broadcast-channel/#set-options-when-creating-a-channel-optional)
    * @property {String} [options.mainChannelName="vuexBroadcast"] - the broadcast channel name, mainly used to elect a leader between all the app instances, defaults to "vuexBroadcast"
    * @property {String} [options.moduleName="vuexBroadcast"] - the vuex module name that will be registered, defaults to "vuexBroadcast"
    * @property {Boolean} [options.enableLeaderElection=false] -
+   *
+   * @returns {Function} a Vuex store plugin
    */
   constructor (options) {
     const {
@@ -84,8 +80,13 @@ export default class VuexBroadcast {
   }
 
   /**
-   * @public
+   * @private
    *
+   * Initialize the plugin by:
+   * - registering a Vuex module
+   * - enabling (or not) leader election
+   * - creating a channel for each elligible namespaced store module
+   * - setting up mutation broadcast
    * @param {Vuex.Store} store - the created vuex store
    * @param {Object} options -
    * @property {Boolean} options.enableLeaderElection - defaults to false
@@ -160,36 +161,9 @@ export default class VuexBroadcast {
       c.close()
     }
 
-    const channel = new EnhancedBroadcastChannel(name, this.#channelsOptions)
-
-    if (config) {
-      channel.mutationsNames = Object.keys(config.mutations).map(
-        mutation => `${name}/${mutation}`
-      )
-    }
-
-    channel.hasMutation = function (mutationName) {
-      // `this` is the current channel
-      if (this.mutationNames) {
-        return this.mutationNames.includes(mutationName)
-      }
-
-      return true
-    }
+    const channel = new StoreModuleChannel(name, this.#channelsOptions, config)
 
     this.#channels.set(name, channel)
-
-    // keep track of the channel the last message sent or received
-    channel.lastMessage = null
-
-    channel.isMessageSameAsLast = function (message) {
-      const stringifiedMessage = JSON.stringify(message.value)
-      return this.lastMessage === stringifiedMessage
-    }
-
-    channel.setLastMessage = function (message) {
-      this.lastMessage = JSON.stringify(message.value)
-    }
 
     return channel
   }
@@ -210,13 +184,12 @@ export default class VuexBroadcast {
     const { value } = message
     const channel = this.#channels.get(channelName)
 
-    // keep track of the last message to avoid infinite loops
     if (
       channel.hasMutation(message.value.type) &&
-      !channel.isMessageSameAsLast(message)
+      !channel.isMessageSameAsLast(message.value)
     ) {
       store.commit(value.type, value.payload)
-      channel.setLastMessage(message)
+      channel.lastMessage = message.value
     }
   }
 
@@ -224,7 +197,6 @@ export default class VuexBroadcast {
    * @private
    *
    * Sends a message to a given channel and keep track of this message to avoid duplicates processing
-   *
    * @param {String} channelName - the channel to post the message on
    * @param {Object} message - the message to send
    * @property {Object} message.value - the mutation to post
@@ -235,8 +207,19 @@ export default class VuexBroadcast {
     if (this.#channels.has(channelName)) {
       const channel = this.#channels.get(channelName)
       // keep track of the last message to avoid infinite loops
-      channel.setLastMessage(message)
+      channel.lastMessage = message.value
       channel.postMessage(message)
     }
+  }
+
+  /**
+   * @public
+   *
+   * Gets the current instance leader status
+   *
+   * @returns {Boolean} true when the instance is the leader
+   */
+  get isLeader () {
+    return this.#isLeader
   }
 }
