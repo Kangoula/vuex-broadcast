@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "A vuex plugin to share mutations between multiple instances of a same Vue app",
   "main": "dist/vuex-broadcast.js",
+  "files": [
+    "dist/vuex-broadcast.js"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "echo \"Error no start script specified\" && exit 1",
