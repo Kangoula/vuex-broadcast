@@ -115,7 +115,9 @@ export default class VuexBroadcast {
           value: mutation
         }
 
-        this.postMessage(namespace, m)
+        if (!mutation.meta || !mutation.meta.broadcast) {
+          this.postMessage(namespace, m)
+        }
       }
     })
   }
@@ -188,7 +190,11 @@ export default class VuexBroadcast {
       channel.hasMutation(message.value.type) &&
       !channel.isMessageSameAsLast(message.value)
     ) {
-      store.commit(value.type, value.payload)
+      store.commit(value.type, value.payload, {
+        meta: {
+          broadcast: true
+        }
+      })
       channel.lastMessage = message.value
     }
   }
@@ -206,9 +212,11 @@ export default class VuexBroadcast {
   postMessage (channelName, message) {
     if (this.#channels.has(channelName)) {
       const channel = this.#channels.get(channelName)
-      // keep track of the last message to avoid infinite loops
-      channel.lastMessage = message.value
-      channel.postMessage(message)
+      if (!channel.isMessageSameAsLast(message.value)) {
+        // keep track of the last message to avoid infinite loops
+        channel.lastMessage = message.value
+        channel.postMessage(message)
+      }
     }
   }
 

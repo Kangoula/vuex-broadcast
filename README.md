@@ -1,5 +1,7 @@
 # Vuex Broadcast
 
+> ## Use with [my fork of Vuex](https://github.com/Kangoula/vuex)
+
 Broadcast and share Vuex modules mutations between mupltiple instances of the same Vue application (like brower tabs) to keep them in sync.
 
 ## Install
