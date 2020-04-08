@@ -1,6 +1,6 @@
 {
   "name": "vuex-broadcast",
-  "version": "1.0.0-0",
+  "version": "1.0.0",
   "description": "A vuex plugin to share mutations between multiple instances of a same Vue app",
   "main": "dist/vuex-broadcast.js",
   "scripts": {
